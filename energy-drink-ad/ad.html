@@ -1,0 +1,279 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Energy Drink Ad</title>
+<style>
+  @font-face { font-family: Anton; src: url(fonts/Anton.woff2) format("woff2"); }
+  @font-face { font-family: Inter; font-weight: 500; src: url(fonts/Inter-500.woff2) format("woff2"); }
+  @font-face { font-family: Inter; font-weight: 800; src: url(fonts/Inter-800.woff2) format("woff2"); }
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// ─── BRAND CONFIG ── edit these, then re-run build.py ──────────────────────
+const BRAND = {
+  name: "VOLT",                        // brand name shown on cans + end card
+  company: "VOLT Energy Co.",          // legal name for the trademark line
+  tagline: "CHARGE YOUR DAY",          // end-card slogan (gets a ™)
+  logo: "brand/logo.png",              // your logo file; if missing, a bolt logo is drawn
+  accent: "#C6FF00",                   // main neon color
+  accent2: "#00E5FF",                  // secondary color
+  flavors: [                           // [name, can color, glow color]
+    ["VOLT LIME",   "#1a1f0a", "#C6FF00"],
+    ["BLUE SURGE",  "#07161f", "#00E5FF"],
+    ["BERRY SHOCK", "#1f0717", "#FF2BD6"],
+  ],
+  claims: ["ZERO SUGAR", "200MG CAFFEINE", "B-VITAMINS", "ALL GAS."],
+};
+// ────────────────────────────────────────────────────────────────────────────
+
+const W = 1080, H = 1920, DURATION = 15;
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+let logoImg = null;
+
+// deterministic randomness so every frame renders the same way every time
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+  let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+const easeBack = x => { const c = 2.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+
+function bg(t, tint, streaks = 0.18) {
+  const g = ctx.createRadialGradient(W / 2, H * 0.45, 50, W / 2, H * 0.45, H * 0.8);
+  g.addColorStop(0, tint || "#15171c"); g.addColorStop(1, "#000");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // speed streaks
+  const r = rng(7);
+  ctx.save(); ctx.globalAlpha = streaks; ctx.strokeStyle = BRAND.accent; ctx.lineWidth = 3;
+  for (let i = 0; i < 28; i++) {
+    const x = r() * W * 1.6 - W * 0.3, sp = 900 + r() * 1400, len = 80 + r() * 260;
+    const y = ((r() * H + t * sp) % (H + 400)) - 200;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - len * 0.35, y - len); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function bolt(x1, y1, x2, y2, seed, width, color) {
+  const r = rng(seed), pts = [[x1, y1]], n = 14;
+  for (let i = 1; i < n; i++) {
+    const k = i / n; pts.push([lerp(x1, x2, k) + (r() - 0.5) * 160, lerp(y1, y2, k) + (r() - 0.5) * 40]);
+  }
+  pts.push([x2, y2]);
+  ctx.save(); ctx.strokeStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 60;
+  ctx.lineJoin = "round";
+  for (const [w, a] of [[width * 3, 0.35], [width, 1]]) {
+    ctx.globalAlpha = a; ctx.lineWidth = w; ctx.beginPath();
+    pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  }
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = width * 0.35; ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  ctx.restore();
+}
+
+function boltIcon(cx, cy, s, color) {           // simple lightning-bolt glyph
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s / 100, s / 100);
+  ctx.beginPath(); ctx.moveTo(12, -50); ctx.lineTo(-30, 8); ctx.lineTo(-2, 8);
+  ctx.lineTo(-14, 50); ctx.lineTo(30, -10); ctx.lineTo(2, -10); ctx.closePath();
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 30; ctx.fill(); ctx.restore();
+}
+
+function drawLogo(cx, cy, size) {
+  if (logoImg) {
+    const k = size / Math.max(logoImg.width, logoImg.height);
+    ctx.drawImage(logoImg, cx - logoImg.width * k / 2, cy - logoImg.height * k / 2, logoImg.width * k, logoImg.height * k);
+    return;
+  }
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#0b0d10"; ctx.fill();
+  ctx.lineWidth = size * 0.05; ctx.strokeStyle = BRAND.accent; ctx.shadowColor = BRAND.accent; ctx.shadowBlur = 40; ctx.stroke();
+  ctx.restore();
+  boltIcon(cx, cy, size * 0.62, BRAND.accent);
+}
+
+function can(cx, cy, h, rot, body, glow, label) {
+  const w = h * 0.42;
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+  // glow
+  ctx.shadowColor = glow; ctx.shadowBlur = 90;
+  // body
+  const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  g.addColorStop(0, "#000"); g.addColorStop(0.18, body); g.addColorStop(0.32, "#3a3f47");
+  g.addColorStop(0.4, body); g.addColorStop(0.85, body); g.addColorStop(1, "#000");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, w * 0.12); ctx.fill();
+  ctx.shadowBlur = 0;
+  // top/bottom metal rims
+  const m = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  m.addColorStop(0, "#555"); m.addColorStop(0.35, "#eee"); m.addColorStop(0.6, "#999"); m.addColorStop(1, "#444");
+  ctx.fillStyle = m;
+  ctx.beginPath(); ctx.roundRect(-w / 2 + 6, -h / 2 - 10, w - 12, 34, 12); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-w / 2 + 10, h / 2 - 22, w - 20, 30, 12); ctx.fill();
+  // neon stripe
+  ctx.fillStyle = glow; ctx.globalAlpha = 0.9;
+  ctx.fillRect(-w / 2 + 4, h * 0.18, w - 8, h * 0.035);
+  ctx.globalAlpha = 1;
+  // logo mark + vertical brand name
+  boltIcon(0, -h * 0.3, w * 0.55, glow);
+  ctx.save(); ctx.rotate(-Math.PI / 2);
+  ctx.font = `${w * 0.42}px Anton`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#fff"; ctx.fillText(BRAND.name, -h * 0.02, 0);
+  ctx.restore();
+  ctx.font = `800 ${w * 0.075}px Inter`; ctx.textAlign = "center"; ctx.fillStyle = glow;
+  ctx.fillText(label, 0, h * 0.32);
+  // specular highlight
+  ctx.globalAlpha = 0.25; ctx.fillStyle = "#fff";
+  ctx.fillRect(-w * 0.43, -h / 2 + 30, w * 0.04, h - 60);
+  ctx.restore();
+}
+
+function bigText(txt, x, y, size, color, align = "center", stroke) {
+  ctx.save(); ctx.font = `${size}px Anton`; ctx.textAlign = align; ctx.textBaseline = "middle";
+  if (stroke) { ctx.lineWidth = 8; ctx.strokeStyle = stroke; ctx.strokeText(txt, x, y); }
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 30; ctx.fillText(txt, x, y); ctx.restore();
+}
+
+function flash(a, color = "#fff") { if (a <= 0) return; ctx.save(); ctx.globalAlpha = clamp(a); ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+
+function shake(t, at, amt, dur = 0.35) {
+  const k = prog(t, at, at + dur); if (k <= 0 || k >= 1) return;
+  const r = rng(Math.floor(t * 60)); ctx.translate((r() - 0.5) * amt * (1 - k), (r() - 0.5) * amt * (1 - k));
+}
+
+function particles(t, t0, cx, cy, seed, color) {
+  const k = t - t0; if (k < 0 || k > 1.6) return;
+  const r = rng(seed); ctx.save(); ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 20;
+  for (let i = 0; i < 70; i++) {
+    const a = r() * Math.PI * 2, sp = 500 + r() * 1400, s = 4 + r() * 10;
+    ctx.globalAlpha = clamp(1 - k / 1.6);
+    ctx.beginPath(); ctx.arc(cx + Math.cos(a) * sp * k, cy + Math.sin(a) * sp * k + 400 * k * k, s * (1 - k / 2), 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ─── SCENES ─────────────────────────────────────────────────────────────────
+function render(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+
+  if (t < 1.9) {                                   // 1 ─ the slump
+    ctx.fillStyle = "#07080a"; ctx.fillRect(0, 0, W, H);
+    shake(t, 1.0, 50);
+    const a = easeOut(prog(t, 0.05, 0.4));
+    ctx.globalAlpha = a; bigText("3:00 PM", W / 2, H * 0.4, 230, "#6b7280"); ctx.globalAlpha = 1;
+    if (t > 0.95) {
+      const s = easeBack(prog(t, 0.95, 1.2));
+      ctx.save(); ctx.translate(W / 2, H * 0.55); ctx.scale(s, s);
+      bigText("CRASHING?", 0, 0, 200, "#fff"); ctx.restore();
+    }
+    if (t > 0.95 && t < 1.25) bolt(W * 0.8, -50, W * 0.3, H * 0.75, 11, 16, BRAND.accent2);
+    flash(1 - prog(t, 0.95, 1.2), "#dff");
+    ctx.globalAlpha = prog(t, 1.65, 1.9); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  }
+
+  else if (t < 5) {                                // 2 ─ the can drops in
+    bg(t); shake(t, 2.3, 70, 0.45);
+    const k = prog(t, 1.9, 2.3), y = lerp(-500, H * 0.56, easeOut(k));
+    const rot = lerp(-0.6, 0, easeOut(k)) + Math.sin(t * 2) * 0.03;
+    // shockwave ring at impact
+    const rk = prog(t, 2.3, 3.0);
+    if (rk > 0 && rk < 1) { ctx.save(); ctx.strokeStyle = BRAND.accent; ctx.globalAlpha = 1 - rk; ctx.lineWidth = 30 * (1 - rk);
+      ctx.beginPath(); ctx.ellipse(W / 2, H * 0.78, 900 * rk, 180 * rk, 0, 0, 7); ctx.stroke(); ctx.restore(); }
+    if (t > 2.3) { bolt(0, H * 0.2, W / 2 - 160, H * 0.55, Math.floor(t * 12), 8, BRAND.accent);
+                   bolt(W, H * 0.3, W / 2 + 160, H * 0.5, Math.floor(t * 12) + 99, 8, BRAND.accent2); }
+    can(W / 2, y, 1000, rot, BRAND.flavors[0][1], BRAND.accent, BRAND.flavors[0][0]);
+    particles(t, 2.3, W / 2, H * 0.72, 3, BRAND.accent);
+    if (t > 2.35) { const s = easeBack(prog(t, 2.35, 2.6));
+      ctx.save(); ctx.translate(W / 2, H * 0.13); ctx.scale(s, s); bigText("WAKE UP.", 0, 0, 220, "#fff", "center", "#000"); ctx.restore(); }
+    flash(1 - prog(t, 2.3, 2.55));
+  }
+
+  else if (t < 9.6) {                              // 3 ─ kinetic claims
+    bg(t, "#111a05");
+    const per = 1.15, i = Math.min(BRAND.claims.length - 1, Math.floor((t - 5) / per));
+    shake(t, 5 + i * per, 40, 0.25);
+    const lt = t - 5 - i * per;
+    can(W * 0.5 + Math.sin(t * 1.5) * 20, H * 0.63, 900, 0.12 * Math.sin(t * 1.2), BRAND.flavors[0][1], BRAND.accent, BRAND.flavors[0][0]);
+    for (let j = 0; j <= i; j++) {                 // stacked words, newest bright
+      const age = t - 5 - j * per, s = easeBack(clamp(age / 0.22));
+      const y = H * 0.1 + j * 170;
+      ctx.save(); ctx.translate(W / 2, y); ctx.scale(s, s);
+      ctx.globalAlpha = j === i ? 1 : 0.4;
+      bigText(BRAND.claims[j], 0, 0, j === BRAND.claims.length - 1 ? 190 : 150, j === i ? BRAND.accent : "#fff", "center", "#000");
+      ctx.restore();
+    }
+    flash(0.5 - lt * 3, BRAND.accent);
+  }
+
+  else if (t < 12.2) {                             // 4 ─ flavor lineup
+    bg(t, "#0a0a14");
+    shake(t, 9.6, 40, 0.3);
+    bigText("PICK YOUR POWER", W / 2, H * 0.12, 130, "#fff", "center", "#000");
+    BRAND.flavors.forEach(([name, body, glow], i) => {
+      const k = easeBack(prog(t, 9.6 + i * 0.25, 9.95 + i * 0.25));
+      const x = [W * 0.2, W * 0.5, W * 0.8][i];
+      const y = lerp(H + 600, H * 0.55 + (i === 1 ? -60 : 40), k) + Math.sin(t * 2 + i) * 12;
+      can(x, y, i === 1 ? 820 : 700, (i - 1) * 0.12, body, glow, name);
+    });
+    ctx.globalAlpha = prog(t, 11.9, 12.2); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  }
+
+  else {                                           // 5 ─ trademark end card
+    bg(t * 0.3, "#0b0f04", 0.06);
+    shake(t, 12.2, 60, 0.4);
+    const rk = prog(t, 12.2, 13.2);
+    if (rk < 1) { ctx.save(); ctx.strokeStyle = BRAND.accent; ctx.globalAlpha = 1 - rk; ctx.lineWidth = 40 * (1 - rk);
+      ctx.beginPath(); ctx.arc(W / 2, H * 0.36, 1200 * easeOut(rk), 0, 7); ctx.stroke(); ctx.restore(); }
+    const ls = easeBack(prog(t, 12.2, 12.6)) * (1 + 0.015 * Math.sin(t * 6));
+    ctx.save(); ctx.translate(W / 2, H * 0.36); ctx.scale(ls, ls); drawLogo(0, 0, 520); ctx.restore();
+
+    // brand name + ™
+    const na = prog(t, 12.55, 12.85);
+    ctx.save(); ctx.globalAlpha = na; ctx.translate(0, (1 - easeOut(na)) * 60);
+    ctx.font = "260px Anton"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    const nw = ctx.measureText(BRAND.name).width;
+    ctx.fillStyle = "#fff"; ctx.shadowColor = BRAND.accent; ctx.shadowBlur = 40;
+    ctx.fillText(BRAND.name, W / 2, H * 0.66);
+    ctx.font = "80px Anton"; ctx.textAlign = "left"; ctx.fillStyle = BRAND.accent;
+    ctx.fillText("™", W / 2 + nw / 2 + 8, H * 0.66 - 150);
+    ctx.restore();
+
+    // tagline + ™
+    const ta = prog(t, 13.0, 13.3);
+    ctx.save(); ctx.globalAlpha = ta; ctx.font = "800 64px Inter"; ctx.textAlign = "center";
+    ctx.fillStyle = BRAND.accent; ctx.letterSpacing = "10px";
+    ctx.fillText(BRAND.tagline + "™", W / 2, H * 0.72); ctx.restore();
+
+    // legal trademark line
+    ctx.save(); ctx.globalAlpha = prog(t, 13.4, 13.8) * 0.75; ctx.font = "500 30px Inter";
+    ctx.textAlign = "center"; ctx.fillStyle = "#cbd5e1";
+    ctx.fillText(`${BRAND.name}™, ${BRAND.tagline}™ and the ${BRAND.name} logo are trademarks`, W / 2, H * 0.9);
+    ctx.fillText(`of ${BRAND.company}  ·  © ${new Date().getFullYear()} ${BRAND.company} All rights reserved.`, W / 2, H * 0.9 + 44);
+    ctx.restore();
+    flash(1 - prog(t, 12.2, 12.5));
+    if (t > 12.2 && t < 12.45) bolt(W * 0.1, -50, W * 0.5, H * 0.3, 5, 14, BRAND.accent);
+  }
+  ctx.restore();
+}
+
+window.render = render;
+window.DURATION = DURATION;
+window.ready = (async () => {
+  await document.fonts.load("100px Anton"); await document.fonts.load("800 40px Inter"); await document.fonts.load("500 40px Inter");
+  await new Promise(res => { const im = new Image(); im.onload = () => { logoImg = im; res(); }; im.onerror = res; im.src = BRAND.logo; });
+  render(0);
+  // live preview when opened in a browser
+  if (!navigator.webdriver) { const s = performance.now(); (function loop() { render(((performance.now() - s) / 1000) % DURATION); requestAnimationFrame(loop); })(); }
+  return true;
+})();
+</script>
+</body>
+</html>
