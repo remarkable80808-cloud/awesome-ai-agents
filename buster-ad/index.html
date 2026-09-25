@@ -1,0 +1,463 @@
+<title>Buster Arcade Ad</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+  /* Single-theme on purpose: this is a CRT arcade screen in any host theme. */
+  :root {
+    color-scheme: dark;
+    --void: #120b2e;
+    --void-deep: #0a0620;
+    --grid: #2d1d63;
+    --amber: #ffb627;
+    --magenta: #ff3d7f;
+    --cyan: #3ee8ff;
+    --ink: #efe6ff;
+    --ink-dim: #a99cd6;
+    --pixel: "Press Start 2P", "Courier New", monospace;
+    --terminal: "VT323", "Courier New", monospace;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--void-deep);
+    color: var(--ink);
+    font-family: var(--terminal);
+    font-size: 22px;
+    line-height: 1.15;
+    display: flex;
+    justify-content: center;
+    padding-inline: 16px;
+    padding-block: 20px;
+    box-sizing: border-box;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+
+  /* The ad itself: a 9:16-ish phone card */
+  .ad {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    align-self: flex-start;
+    background:
+      radial-gradient(120% 70% at 50% 0%, #2a1668 0%, transparent 60%),
+      var(--void);
+    border: 4px solid var(--grid);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 0 0 2px #000, 0 24px 60px rgba(0,0,0,.6), inset 0 0 80px rgba(0,0,0,.55);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 22px 18px 24px;
+  }
+  /* CRT scanlines + vignette over everything */
+  .ad::after {
+    content: "";
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px),
+      radial-gradient(130% 100% at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%);
+    mix-blend-mode: multiply;
+    z-index: 5;
+  }
+
+  .marquee {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--pixel);
+    font-size: 9px;
+    letter-spacing: .12em;
+    color: var(--ink-dim);
+  }
+  .marquee .soon {
+    color: var(--void);
+    background: var(--cyan);
+    padding: 6px 8px;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { background: var(--magenta); color: var(--ink); } }
+
+  .logo {
+    margin: 4px 0 0;
+    text-align: center;
+    font-family: var(--pixel);
+    font-weight: 400;
+    font-size: clamp(44px, 15vw, 64px);
+    letter-spacing: .04em;
+    color: var(--amber);
+    transform: skewY(-4deg);
+    text-shadow:
+      4px 4px 0 var(--magenta),
+      8px 8px 0 #7a1a55,
+      -2px 0 0 var(--cyan);
+  }
+  .tagline {
+    margin: 0;
+    text-align: center;
+    font-size: 26px;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .tagline b { color: var(--amber); font-weight: 400; }
+
+  /* Playable demo screen */
+  .screen {
+    position: relative;
+    border: 3px solid var(--cyan);
+    border-radius: 10px;
+    box-shadow: 0 0 18px rgba(62,232,255,.35), inset 0 0 20px rgba(62,232,255,.15);
+    background: var(--void-deep);
+    overflow: hidden;
+  }
+  .screen canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 6 / 5;
+    max-width: 100%;
+    image-rendering: pixelated;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .screen:focus-within { outline: 3px solid var(--amber); outline-offset: 3px; }
+  .hint {
+    margin: -8px 0 0;
+    text-align: center;
+    font-size: 18px;
+    color: var(--ink-dim);
+  }
+
+  .story {
+    margin: 0;
+    font-size: 21px;
+    color: var(--ink);
+    max-width: 38ch;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .features {
+    list-style: none; margin: 0; padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .features li {
+    border: 2px dashed var(--grid);
+    padding: 10px 10px 8px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .features .num {
+    font-family: var(--pixel);
+    font-size: 14px;
+    color: var(--cyan);
+    font-variant-numeric: tabular-nums;
+  }
+  .features .lbl { font-size: 18px; color: var(--ink-dim); }
+
+  /* Coin-slot price panel */
+  .price {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    background: #1b1042;
+    border: 3px solid var(--amber);
+    border-radius: 6px;
+  }
+  .slot {
+    width: 38px; height: 62px;
+    border-radius: 6px;
+    background: linear-gradient(#3a2a10, #1a1206);
+    border: 3px solid var(--amber);
+    display: grid; place-items: center;
+  }
+  .slot::before {
+    content: ""; width: 5px; height: 34px; border-radius: 3px;
+    background: #000; box-shadow: 0 0 6px var(--amber);
+  }
+  .price .top {
+    font-family: var(--pixel); font-size: 9px; letter-spacing: .12em;
+    color: var(--ink-dim);
+  }
+  .price .amt {
+    font-family: var(--pixel);
+    font-size: clamp(26px, 9vw, 34px);
+    color: var(--amber);
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
+  .price .amt small { font-size: 11px; color: var(--ink); margin-left: 4px; }
+  .price .sub { font-size: 18px; color: var(--ink); }
+
+  .cta {
+    font-family: var(--pixel);
+    font-size: 13px;
+    letter-spacing: .08em;
+    color: var(--void-deep);
+    background: var(--magenta);
+    border: none;
+    padding: 18px 12px;
+    border-radius: 6px;
+    box-shadow: 0 6px 0 #8f1d48, 0 0 24px rgba(255,61,127,.45);
+    cursor: pointer;
+    transition: transform .06s, box-shadow .06s;
+  }
+  .cta:active { transform: translateY(5px); box-shadow: 0 1px 0 #8f1d48; }
+  .cta:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
+
+  .platforms {
+    display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+  }
+  .platforms span {
+    border: 2px solid var(--ink-dim);
+    border-radius: 999px;
+    padding: 4px 14px 2px;
+    font-size: 19px;
+    color: var(--ink);
+  }
+  .fine {
+    margin: 0;
+    text-align: center;
+    font-size: 16px;
+    color: var(--ink-dim);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marquee .soon { animation: none; }
+  }
+</style>
+
+<main class="ad" aria-label="Buster mobile game advertisement">
+  <div class="marquee">
+    <span>MOBILE · 1P</span>
+    <span class="soon">COMING SOON</span>
+  </div>
+
+  <h1 class="logo">BUSTER</h1>
+  <p class="tagline">One thumb. One wrecking bot. <b>Zero blocks left standing.</b></p>
+
+  <div class="screen">
+    <canvas id="demo" width="360" height="300" tabindex="0" aria-label="Playable Buster demo. Drag or use arrow keys to move the bumper."></canvas>
+  </div>
+  <p class="hint" id="hint">▲ TAP TO TAKE OVER ▲</p>
+
+  <p class="story">Neon City is buried in junk blocks. Buster, a pocket-sized wrecking bot, bounces through all of it. Swipe to aim, stack combos, and bust every block in town.</p>
+
+  <ul class="features">
+    <li><span class="num">60</span><span class="lbl">levels in 4 neon districts</span></li>
+    <li><span class="num">1-THUMB</span><span class="lbl">swipe controls made for phones</span></li>
+    <li><span class="num">OFFLINE</span><span class="lbl">plays on the subway, no signal needed</span></li>
+    <li><span class="num">8-BIT</span><span class="lbl">chiptune soundtrack &amp; pixel art</span></li>
+  </ul>
+
+  <div class="price">
+    <div class="slot" aria-hidden="true"></div>
+    <div>
+      <div class="top">1 CREDIT =</div>
+      <div class="amt">$6.99<small>USD</small></div>
+      <div class="sub">Pay once. No ads. No in-app purchases.</div>
+    </div>
+  </div>
+
+  <button class="cta" id="cta" type="button">▶ INSERT COIN · PLAY DEMO</button>
+
+  <div class="platforms" aria-label="Platforms">
+    <span>iPhone</span><span>Android</span>
+  </div>
+  <p class="fine">Coming soon to the App Store and Google Play. Price shown in US dollars.</p>
+</main>
+
+<script>
+(() => {
+  const cv = document.getElementById('demo');
+  const ctx = cv.getContext('2d');
+  const W = 360, H = 300;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.imageSmoothingEnabled = false;
+
+  const C = { amber:'#ffb627', magenta:'#ff3d7f', cyan:'#3ee8ff', ink:'#efe6ff', dim:'#a99cd6', grid:'#2d1d63', void:'#0a0620' };
+  const ROW_COLORS = [C.magenta, '#ff7a3d', C.amber, '#7dff6b', C.cyan];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Buster sprite, 8x8 pixels drawn at 2x
+  const SPRITE = [
+    '..####..',
+    '.######.',
+    '##w##w##',
+    '##k##k##',
+    '########',
+    '#p####p#',
+    '.##kk##.',
+    '..####..'
+  ];
+  const SP = { '#': C.amber, w: '#ffffff', k: '#1a0f3a', p: C.magenta };
+
+  let bricks, ball, pad, score = 0, hi = 0, lives = 3, mode = 'attract', msg = '', msgT = 0, particles = [];
+  let audio = null;
+
+  function beep(freq, dur = 0.05, type = 'square') {
+    if (!audio) return;
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.06, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+    o.connect(g).connect(audio.destination);
+    o.start(); o.stop(audio.currentTime + dur);
+  }
+
+  function buildBricks() {
+    bricks = [];
+    const cols = 8, rows = 5, bw = 40, bh = 14, gap = 3;
+    const ox = (W - (cols * bw + (cols - 1) * gap)) / 2;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        bricks.push({ x: ox + c * (bw + gap), y: 38 + r * (bh + gap), w: bw, h: bh, color: ROW_COLORS[r], alive: true });
+  }
+  function resetBall() {
+    ball = { x: W / 2, y: 200, vx: (Math.random() < .5 ? -1 : 1) * 2.4, vy: -3, r: 8 };
+  }
+  function resetGame() {
+    buildBricks(); resetBall();
+    pad = { x: W / 2, w: 64, h: 8, y: H - 22, target: W / 2 };
+    score = 0; lives = 3;
+  }
+
+  function burst(x, y, color) {
+    for (let i = 0; i < 8; i++)
+      particles.push({ x, y, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, life: 22, color });
+  }
+
+  function step() {
+    // Paddle: attract mode tracks the ball with a little lag
+    if (mode === 'attract') pad.target = ball.x + Math.sin(performance.now() / 400) * 14;
+    pad.x += (pad.target - pad.x) * (mode === 'attract' ? 0.14 : 0.45);
+    pad.x = Math.max(pad.w / 2, Math.min(W - pad.w / 2, pad.x));
+
+    ball.x += ball.vx; ball.y += ball.vy;
+    if (ball.x < ball.r || ball.x > W - ball.r) { ball.vx *= -1; ball.x = Math.max(ball.r, Math.min(W - ball.r, ball.x)); beep(220); }
+    if (ball.y < 24 + ball.r) { ball.vy = Math.abs(ball.vy); beep(220); }
+
+    // Paddle bounce, angle depends on hit position
+    if (ball.vy > 0 && ball.y + ball.r >= pad.y && ball.y + ball.r <= pad.y + pad.h + 6 &&
+        Math.abs(ball.x - pad.x) <= pad.w / 2 + ball.r) {
+      const off = (ball.x - pad.x) / (pad.w / 2);
+      const speed = Math.min(5.2, Math.hypot(ball.vx, ball.vy) + 0.05);
+      ball.vx = speed * off * 0.8;
+      ball.vy = -Math.sqrt(Math.max(1, speed * speed - ball.vx * ball.vx));
+      beep(330);
+    }
+
+    for (const b of bricks) {
+      if (!b.alive) continue;
+      if (ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w && ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h) {
+        b.alive = false;
+        const ox = Math.min(ball.x + ball.r - b.x, b.x + b.w - (ball.x - ball.r));
+        const oy = Math.min(ball.y + ball.r - b.y, b.y + b.h - (ball.y - ball.r));
+        if (ox < oy) ball.vx *= -1; else ball.vy *= -1;
+        score += 50; hi = Math.max(hi, score);
+        burst(b.x + b.w / 2, b.y + b.h / 2, b.color);
+        beep(520 + Math.random() * 300, 0.06);
+        break;
+      }
+    }
+
+    if (bricks.every(b => !b.alive)) { msg = 'CITY CLEARED!'; msgT = 90; buildBricks(); resetBall(); beep(880, .2, 'triangle'); }
+
+    if (ball.y > H + 20) {
+      if (mode === 'attract') { resetBall(); }
+      else {
+        lives--; beep(110, .25, 'sawtooth');
+        if (lives <= 0) { msg = 'GAME OVER'; msgT = 120; mode = 'attract'; setHint(); resetGame(); }
+        else { msg = 'READY?'; msgT = 50; resetBall(); }
+      }
+    }
+
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
+    particles = particles.filter(p => p.life > 0);
+    if (msgT > 0) msgT--;
+  }
+
+  function text(s, x, y, size, color, align = 'left') {
+    ctx.font = `${size}px "Press Start 2P", monospace`;
+    ctx.textAlign = align; ctx.fillStyle = color; ctx.fillText(s, x, y);
+  }
+
+  function draw() {
+    ctx.fillStyle = C.void; ctx.fillRect(0, 0, W, H);
+    // perspective floor grid
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) { const y = 200 + i * i * 3.2; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    for (let i = -8; i <= 8; i++) { ctx.beginPath(); ctx.moveTo(W / 2 + i * 12, 200); ctx.lineTo(W / 2 + i * 60, H); ctx.stroke(); }
+
+    // HUD
+    text(String(score).padStart(5, '0'), 10, 16, 8, C.ink);
+    text('HI ' + String(hi).padStart(5, '0'), W / 2, 16, 8, C.amber, 'center');
+    text(mode === 'attract' ? 'DEMO' : '♥'.repeat(lives), W - 10, 16, 8, mode === 'attract' ? C.cyan : C.magenta, 'right');
+
+    for (const b of bricks) {
+      if (!b.alive) continue;
+      ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(b.x, b.y, b.w, 2);
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(b.x, b.y + b.h - 2, b.w, 2);
+    }
+
+    particles.forEach(p => { ctx.fillStyle = p.color; ctx.fillRect(p.x | 0, p.y | 0, 3, 3); });
+
+    // bumper
+    ctx.fillStyle = C.cyan; ctx.fillRect(pad.x - pad.w / 2, pad.y, pad.w, pad.h);
+    ctx.fillStyle = C.ink; ctx.fillRect(pad.x - pad.w / 2 + 4, pad.y + 2, pad.w - 8, 2);
+
+    // Buster
+    const px = 2, sx = Math.round(ball.x - 8), sy = Math.round(ball.y - 8);
+    SPRITE.forEach((row, r) => [...row].forEach((ch, c) => {
+      if (SP[ch]) { ctx.fillStyle = SP[ch]; ctx.fillRect(sx + c * px, sy + r * px, px, px); }
+    }));
+
+    if (msgT > 0) text(msg, W / 2, 150, 14, C.amber, 'center');
+    else if (mode === 'attract' && Math.floor(performance.now() / 600) % 2) text('TAP TO PLAY', W / 2, 150, 10, C.ink, 'center');
+  }
+
+  function loop() { step(); draw(); requestAnimationFrame(loop); }
+
+  const hintEl = document.getElementById('hint');
+  function setHint() {
+    hintEl.textContent = mode === 'attract' ? '▲ TAP TO TAKE OVER ▲' : 'DRAG ← → TO MOVE THE BUMPER';
+  }
+
+  function start() {
+    if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+    if (mode !== 'play') { mode = 'play'; resetGame(); msg = 'PLAYER 1'; msgT = 60; setHint(); beep(660, .12, 'triangle'); }
+    if (reduced && !running) { running = true; loop(); }
+  }
+  function moveTo(clientX) {
+    const r = cv.getBoundingClientRect();
+    pad.target = ((clientX - r.left) / r.width) * W;
+  }
+  cv.addEventListener('pointerdown', e => { start(); moveTo(e.clientX); cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (mode === 'play') moveTo(e.clientX); });
+  cv.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault(); start();
+      pad.target = pad.x + (e.key === 'ArrowLeft' ? -40 : 40);
+    } else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); }
+  });
+
+  const cta = document.getElementById('cta');
+  cta.addEventListener('click', () => {
+    cv.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+    cv.focus({ preventScroll: true });
+    start();
+    [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .1, 'triangle'), i * 90));
+  });
+
+  resetGame();
+  let running = false;
+  const boot = () => { draw(); if (!reduced) { running = true; loop(); } };
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(boot);
+})();
+</script>
